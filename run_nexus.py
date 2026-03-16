@@ -1,3 +1,3 @@
-from backend.main_engine import start_nexus
+from frontend.app import run_ui
 
-start_nexus()
+run_ui()

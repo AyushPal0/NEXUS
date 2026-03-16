@@ -1,3 +1,4 @@
+from backend.brain.ai_brain import ask_ai
 from backend.automation.system_control import *
 from backend.automation.file_manager import *
 from backend.automation.screenshot import *
@@ -5,28 +6,35 @@ from backend.automation.camera import *
 
 def handle_command(command, speak):
 
-    if "open chrome" in command:
+    intent = ask_ai(command)
+
+    print("AI Intent:", intent)
+
+    if "open_chrome" in intent:
         speak("Opening Chrome")
         open_chrome()
 
-    elif "open youtube" in command:
+    elif "open_youtube" in intent:
         speak("Opening YouTube")
         open_youtube()
 
-    elif "create folder" in command:
+    elif "create_folder" in intent:
         speak("Creating folder")
         create_folder()
 
-    elif "screenshot" in command:
+    elif "take_screenshot" in intent:
         speak("Taking screenshot")
         take_screenshot()
 
-    elif "take photo" in command:
+    elif "take_photo" in intent:
         speak("Capturing photo")
         take_photo()
 
-    elif "stop nexus" in command:
-        speak("Shutting down")
+    elif "stop" in intent:
+        speak("Shutting down Nexus")
         return False
+
+    else:
+        speak("I am not sure how to do that yet")
 
     return True
