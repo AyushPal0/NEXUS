@@ -3,6 +3,7 @@ from backend.automation.system_control import *
 from backend.automation.file_manager import *
 from backend.automation.screenshot import *
 from backend.automation.camera import *
+from backend.brain.screen_vision import analyze_screen
 
 def handle_command(command, speak):
 
@@ -30,9 +31,17 @@ def handle_command(command, speak):
         speak("Capturing photo")
         take_photo()
 
+    elif "screen" in intent or "what is on my screen" in command:
+        speak("Analyzing your screen")
+        result = analyze_screen()
+        print(result)
+        speak(result)
+
     elif "stop" in intent:
         speak("Shutting down Nexus")
         return False
+
+    
 
     else:
         speak("I am not sure how to do that yet")
