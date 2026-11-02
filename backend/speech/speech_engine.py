@@ -18,21 +18,45 @@ def _azure_provider():
         _azure = AzureSpeechProvider()
     return _azure
 
-def speak(text):
+def speak(text, stop_event=None):
+    if stop_event is not None and stop_event.is_set():
+        return ""
     global engine
     provider = _azure_provider()
     if provider is not None:
+        if stop_event is not None:
+            return provider.speak(text, stop_event=stop_event)
         return provider.speak(text)
     if engine is None:
         engine = pyttsx3.init()
+    if stop_event is not None and stop_event.is_set():
+        return
     engine.say(text)
-    engine.runAndWait()
+    if stop_event is None:
+        engine.runAndWait()
+        return
+    engine.startLoop(False)
+    try:
+        while engine.isBusy() and not stop_event.is_set():
+            engine.iterate()
+            stop_event.wait(0.02)
+        if stop_event.is_set():
+            engine.stop()
+    finally:
+        engine.endLoop()
 
-def listen():
+def listen(stop_event=None):
+    if stop_event is not None and stop_event.is_set():
+        return ""
     provider = _azure_provider()
     if provider is not None:
+        if stop_event is not None:
+            return provider.listen(stop_event=stop_event)
         return provider.listen()
     recognizer = sr.Recognizer()
+    if stop_event is not None:
+        from backend.speech.cancellable_audio import listen as listen_cancellable
+        return listen_cancellable(recognizer, sr, stop_event)
 
     with sr.Microphone() as source:
         print("Listening...")
@@ -45,3 +69,13 @@ def listen():
 
     except:
         return ""
+
+def close():
+    """Release worker-owned speech resources before another session starts."""
+    global engine, _azure
+    try:
+        if engine is not None:
+            engine.stop()
+    finally:
+        engine = None
+        _azure = None

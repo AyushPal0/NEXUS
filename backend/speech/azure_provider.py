@@ -16,7 +16,10 @@ class AzureSpeechProvider:
         self.config.speech_recognition_language = os.environ.get("AZURE_SPEECH_LANGUAGE", "en-US")
         self.config.speech_synthesis_voice_name = os.environ.get("AZURE_SPEECH_VOICE", "en-US-JennyNeural")
 
-    def listen(self):
+    def listen(self, stop_event=None):
+        if stop_event is not None:
+            from backend.speech.azure_session import listen
+            return listen(self, stop_event)
         sdk = self.sdk
         audio = sdk.audio.AudioConfig(use_default_microphone=True)
         recognizer = sdk.SpeechRecognizer(speech_config=self.config, audio_config=audio)
@@ -28,7 +31,10 @@ class AzureSpeechProvider:
         # Do not log cancellation details: they can include service configuration.
         raise RuntimeError("Azure speech recognition failed. Check your credentials, region, network and microphone.")
 
-    def speak(self, text):
+    def speak(self, text, stop_event=None):
+        if stop_event is not None:
+            from backend.speech.azure_session import speak
+            return speak(self, text, stop_event)
         sdk = self.sdk
         audio = sdk.audio.AudioOutputConfig(use_default_speaker=True)
         synthesizer = sdk.SpeechSynthesizer(speech_config=self.config, audio_config=audio)

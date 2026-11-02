@@ -4,7 +4,7 @@ import json
 from vosk import Model, KaldiRecognizer
 
 
-model = Model("models/vosk-model-small-en-us-0.15")
+model = None
 
 q = queue.Queue()
 
@@ -13,7 +13,18 @@ def callback(indata, frames, time, status):
     q.put(bytes(indata))
 
 
-def listen_for_wake_word():
+def listen_for_wake_word(stop_event=None):
+    global model
+    if stop_event is not None and stop_event.is_set():
+        return False
+    if model is None:
+        model = Model("models/vosk-model-small-en-us-0.15")
+    # Discard audio left over from the previous session.
+    while not q.empty():
+        try:
+            q.get_nowait()
+        except queue.Empty:
+            break
 
     recognizer = KaldiRecognizer(model, 16000)
 
@@ -27,9 +38,12 @@ def listen_for_wake_word():
 
         print("Waiting for wake word...")
 
-        while True:
+        while stop_event is None or not stop_event.is_set():
 
-            data = q.get()
+            try:
+                data = q.get(timeout=0.1)
+            except queue.Empty:
+                continue
 
             if recognizer.AcceptWaveform(data):
 
@@ -41,3 +55,4 @@ def listen_for_wake_word():
 
                 if "hey nexus" in text:
                     return True
+    return False

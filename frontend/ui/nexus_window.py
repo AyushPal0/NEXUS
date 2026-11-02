@@ -1,19 +1,22 @@
-from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout
-from PyQt6.QtCore import Qt
-import threading
+from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QPushButton
+from PyQt6.QtCore import Qt, pyqtSignal
+from backend.assistant_session import AssistantSession
 
 from backend.main_engine import start_nexus
 from frontend.ui.orb_widget import OrbWidget
 
 
 class NexusWindow(QWidget):
+    state_changed = pyqtSignal(str)
+    session_error = pyqtSignal(str)
+    session_finished = pyqtSignal()
 
     def __init__(self):
         super().__init__()
 
         self.setWindowTitle("NEXUS")
 
-        self.setFixedSize(220, 220)
+        self.setFixedSize(280, 360)
 
         self.setWindowFlags(
             Qt.WindowType.WindowStaysOnTopHint |
@@ -22,7 +25,11 @@ class NexusWindow(QWidget):
 
         self.old_pos = None
 
-        self._assistant_thread = None
+        self._session = None
+        self._failed = False
+        self.state_changed.connect(self._on_state)
+        self.session_error.connect(self._on_error)
+        self.session_finished.connect(self._on_finished)
         self.init_ui()
 
     def init_ui(self):
@@ -39,21 +46,59 @@ class NexusWindow(QWidget):
         self.orb.setFixedSize(150, 150)
 
         layout.addWidget(self.title)
-        layout.addWidget(self.orb)
+        layout.addWidget(self.orb, alignment=Qt.AlignmentFlag.AlignHCenter)
         layout.addWidget(self.status)
+        self.stop_button = QPushButton("Stop")
+        self.stop_button.setEnabled(False)
+        self.stop_button.clicked.connect(self.stop_listening)
+        layout.addWidget(self.stop_button)
+        self.error_message = QLabel("")
+        self.error_message.setWordWrap(True)
+        self.error_message.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.error_message)
 
         self.setLayout(layout)
 
         self.orb.mousePressEvent = self.start_listening
 
-    def start_listening(self, event):
-
-        if self._assistant_thread is not None and self._assistant_thread.is_alive():
+    def start_listening(self, event=None):
+        # Keep this session until its queued completion reaches the UI thread.
+        if self._session is not None:
             return
-        self.status.setText("Listening...")
+        self._failed = False
+        self.error_message.clear()
+        self.status.setText("Starting")
+        self.stop_button.setEnabled(True)
+        self._session = AssistantSession(
+            start_nexus, self.state_changed.emit,
+            self.session_error.emit, self.session_finished.emit,
+        )
+        self._session.start()
 
-        self._assistant_thread = threading.Thread(daemon=True, target=start_nexus)
-        self._assistant_thread.start()
+    def stop_listening(self):
+        if self._session is not None:
+            self._session.stop()
+            self.status.setText("Stopping...")
+            self.stop_button.setEnabled(False)
+
+    def _on_state(self, state):
+        if self._session is not None and not self._session.stop_event.is_set():
+            self.status.setText(state)
+
+    def _on_error(self, message):
+        self._failed = True
+        self.status.setText("Error")
+        self.error_message.setText(message)
+
+    def _on_finished(self):
+        self._session = None
+        self.stop_button.setEnabled(False)
+        if not self._failed:
+            self.status.setText("Idle")
+
+    def closeEvent(self, event):
+        self.stop_listening()
+        super().closeEvent(event)
 
     # Make window draggable
     def mousePressEvent(self, event):

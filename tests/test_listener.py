@@ -1,27 +1,51 @@
-"""Exercise the actual UI callback without Qt, microphone, or model imports."""
-import ast
-from pathlib import Path
-from types import SimpleNamespace
+"""Session lifecycle tests use real workers without models or audio devices."""
+import threading
 import unittest
-from unittest.mock import Mock
+from backend.assistant_session import AssistantSession
+
 
 class ListenerTests(unittest.TestCase):
-    def test_repeated_click_does_not_start_second_worker(self):
-        tree = ast.parse(Path("frontend/ui/nexus_window.py").read_text(encoding="utf-8"))
-        cls = next(n for n in tree.body if isinstance(n, ast.ClassDef))
-        method = next(n for n in cls.body if isinstance(n, ast.FunctionDef) and n.name == "start_listening")
-        worker = Mock()
-        worker.is_alive.return_value = True
-        threading = SimpleNamespace(Thread=Mock(return_value=worker))
-        context = {"threading": threading, "start_karna": Mock(), "start_nexus": Mock()}
-        exec(compile(ast.Module(body=[method], type_ignores=[]), "listener", "exec"), context)
-        window = SimpleNamespace(_assistant_thread=None, status=Mock())
-        arguments = [None] if len(method.args.args) > 1 else []
-        callback = lambda target: context["start_listening"](target, *arguments)
-        callback(window)
-        callback(window)
-        threading.Thread.assert_called_once()
-        worker.start.assert_called_once()
-        worker.is_alive.return_value = False
-        callback(window)
-        self.assertEqual(threading.Thread.call_count, 2)
+    def test_stop_reaches_worker_and_completion_runs_once(self):
+        started = threading.Event()
+        finished = []
+        states = []
+
+        def run(stop, on_state):
+            on_state("Listening")
+            started.set()
+            self.assertTrue(stop.wait(1))
+
+        errors = []
+        session = AssistantSession(run, states.append, errors.append, lambda: finished.append(True))
+        session.start()
+        self.assertTrue(started.wait(1))
+        session.stop()
+        session.thread.join(1)
+        self.assertFalse(session.thread.is_alive())
+        self.assertEqual(states, ["Listening"])
+        self.assertEqual(errors, [])
+        self.assertEqual(finished, [True])
+
+    def test_error_is_visible_without_exception_secrets(self):
+        def run(stop, on_state):
+            raise RuntimeError("secret-resource-key")
+
+        errors, finished = [], []
+        session = AssistantSession(run, lambda state: None, errors.append, lambda: finished.append(True))
+        session.start()
+        session.thread.join(1)
+        self.assertEqual(len(errors), 1)
+        self.assertIn("speech settings", errors[0])
+        self.assertNotIn("secret-resource-key", errors[0])
+        self.assertEqual(finished, [True])
+
+    def test_canceled_worker_error_does_not_replace_stopping_state(self):
+        def run(stop, on_state):
+            stop.set()
+            raise RuntimeError("canceled")
+
+        errors = []
+        session = AssistantSession(run, lambda state: None, errors.append, lambda: None)
+        session.start()
+        session.thread.join(1)
+        self.assertEqual(errors, [])

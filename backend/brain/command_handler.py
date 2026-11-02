@@ -9,8 +9,10 @@ from backend.brain.screen_vision import analyze_screen
 from backend.utils.memory_manager import remember, recall
 
 
-def handle_command(command, speak):
+def handle_command(command, speak, stop_event=None):
 
+    if stop_event is not None and stop_event.is_set():
+        return False
     command = command.strip().rstrip(".!?")
     if not command:
         return True
@@ -68,6 +70,8 @@ def handle_command(command, speak):
         speak("Executing your request")
 
         for task in tasks:
+            if stop_event is not None and stop_event.is_set():
+                return False
 
             print("Task:", task)
             if task == "stop":
@@ -92,7 +96,11 @@ def handle_command(command, speak):
         return True
 
     # 🤖 AI INTENT (Fallback)
+    if stop_event is not None and stop_event.is_set():
+        return False
     intent = normalize_task(ask_ai(command)) or "unknown"
+    if stop_event is not None and stop_event.is_set():
+        return False
 
     print("AI Intent:", intent)
 
