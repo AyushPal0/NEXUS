@@ -4,6 +4,23 @@ KARNA/NEXUS can use Microsoft's Python Speech SDK for command recognition and
 spoken responses. The PyQt6 UI, local Vosk wake-word detector, and Ollama planner
 remain in place. The default provider retains Google recognition and pyttsx3.
 
+## In-app speech settings
+
+Click **Speech settings** while the assistant is idle. Choose Microsoft Azure
+Speech and enter your resource region, session key, recognition language, and
+voice name. Save applies the settings to the next assistant session. The dialog
+validates required fields; it does not contact Azure or verify credentials.
+Install the optional SDK below before using Azure.
+
+Only provider, region, language, and voice are saved locally through Qt settings
+(`NexusAssistant/Speech`, in the Windows user registry). The key is held in the
+app process environment and is never written to these settings. After restarting,
+enter the key again or supply `AZURE_SPEECH_KEY` in the launching shell. Existing
+shell variables override saved preferences at app startup. Cancel leaves the
+active configuration unchanged. Settings are disabled while a session is running
+or stopping. Changing recognition language does not change the Vosk wake-word
+model. Choose a voice supported by Azure for your desired output language.
+
 ## Setup on Windows
 
 Use your existing project Python environment and dependencies. From the project

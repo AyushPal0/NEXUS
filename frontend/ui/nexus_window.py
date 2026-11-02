@@ -1,3 +1,5 @@
+from backend.speech.preferences import SpeechPreferences
+from frontend.ui.speech_settings import SpeechSettingsDialog
 from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QPushButton
 from PyQt6.QtCore import Qt, pyqtSignal
 from backend.assistant_session import AssistantSession
@@ -16,7 +18,7 @@ class NexusWindow(QWidget):
 
         self.setWindowTitle("NEXUS")
 
-        self.setFixedSize(280, 360)
+        self.setFixedSize(280, 400)
 
         self.setWindowFlags(
             Qt.WindowType.WindowStaysOnTopHint |
@@ -52,6 +54,9 @@ class NexusWindow(QWidget):
         self.stop_button.setEnabled(False)
         self.stop_button.clicked.connect(self.stop_listening)
         layout.addWidget(self.stop_button)
+        self.settings_button = QPushButton("Speech settings")
+        self.settings_button.clicked.connect(self.open_speech_settings)
+        layout.addWidget(self.settings_button)
         self.error_message = QLabel("")
         self.error_message.setWordWrap(True)
         self.error_message.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -65,15 +70,25 @@ class NexusWindow(QWidget):
         # Keep this session until its queued completion reaches the UI thread.
         if self._session is not None:
             return
+        try:
+            SpeechPreferences.from_environment().validate()
+        except ValueError as error:
+            self._on_error(str(error))
+            return
         self._failed = False
         self.error_message.clear()
         self.status.setText("Starting")
         self.stop_button.setEnabled(True)
+        self.settings_button.setEnabled(False)
         self._session = AssistantSession(
             start_nexus, self.state_changed.emit,
             self.session_error.emit, self.session_finished.emit,
         )
         self._session.start()
+
+    def open_speech_settings(self):
+        if self._session is None:
+            SpeechSettingsDialog(self).exec()
 
     def stop_listening(self):
         if self._session is not None:
@@ -93,6 +108,7 @@ class NexusWindow(QWidget):
     def _on_finished(self):
         self._session = None
         self.stop_button.setEnabled(False)
+        self.settings_button.setEnabled(True)
         if not self._failed:
             self.status.setText("Idle")
 
