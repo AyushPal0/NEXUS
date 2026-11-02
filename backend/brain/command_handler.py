@@ -1,3 +1,4 @@
+from backend.brain.task_commands import normalize_task, folder_name
 from backend.brain.ai_brain import ask_ai
 from backend.brain.task_agent import plan_tasks
 from backend.automation.system_control import *
@@ -10,7 +11,26 @@ from backend.utils.memory_manager import remember, recall
 
 def handle_command(command, speak):
 
+    command = command.strip()
+    if not command:
+        return True
+    original_command = command
     command = command.lower()
+
+    # Handle control and screen requests before model planning or memory lookup.
+    if command in {"stop", "stop listening", "shutdown", "shut down", "exit", "quit"}:
+        speak("Shutting down the assistant")
+        return False
+    if "what is on my screen" in command or command in {"describe my screen", "analyze screen"}:
+        speak("Analyzing your screen")
+        speak(analyze_screen())
+        return True
+
+    try:
+        name = folder_name(original_command)
+    except ValueError as error:
+        speak(str(error))
+        return True
 
     # 🧠 MEMORY: Remember
     if "remember" in command:
@@ -41,7 +61,8 @@ def handle_command(command, speak):
         return True
 
     # 🤖 MULTI-STEP TASK AGENT
-    tasks = plan_tasks(command)
+    tasks = [task for raw in plan_tasks(command)
+             if (task := normalize_task(raw)) is not None]
 
     if tasks:
         speak("Executing your request")
@@ -49,26 +70,29 @@ def handle_command(command, speak):
         for task in tasks:
 
             print("Task:", task)
+            if task == "stop":
+                speak("Shutting down the assistant")
+                return False
 
-            if "open_chrome" in task:
+            if task == "open_chrome":
                 open_chrome()
 
-            elif "open_youtube" in task:
+            elif task == "open_youtube":
                 open_youtube()
 
-            elif "create_folder" in task:
-                create_folder()
+            elif task == "create_folder":
+                create_folder(name)
 
-            elif "take_screenshot" in task:
+            elif task == "take_screenshot":
                 take_screenshot()
 
-            elif "take_photo" in task:
+            elif task == "take_photo":
                 take_photo()
 
         return True
 
     # 🤖 AI INTENT (Fallback)
-    intent = ask_ai(command)
+    intent = normalize_task(ask_ai(command)) or "unknown"
 
     print("AI Intent:", intent)
 
@@ -82,7 +106,7 @@ def handle_command(command, speak):
 
     elif "create_folder" in intent:
         speak("Creating folder")
-        create_folder()
+        create_folder(name)
 
     elif "take_screenshot" in intent:
         speak("Taking screenshot")
