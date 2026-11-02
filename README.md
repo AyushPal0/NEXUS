@@ -42,3 +42,8 @@ run_nexus.py
 - Web search integration
 - AI task planning
 - Cross-platform support
+
+## Microsoft Azure Speech (optional)
+
+See [setup and verification](docs/azure-speech.md) to use Microsoft Speech SDK
+for voice commands and responses while retaining the existing UI and wake word.

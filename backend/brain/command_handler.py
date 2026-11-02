@@ -11,7 +11,7 @@ from backend.utils.memory_manager import remember, recall
 
 def handle_command(command, speak):
 
-    command = command.strip()
+    command = command.strip().rstrip(".!?")
     if not command:
         return True
     original_command = command

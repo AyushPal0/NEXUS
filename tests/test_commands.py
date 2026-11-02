@@ -68,3 +68,7 @@ class RoutingTests(unittest.TestCase):
     def test_planned_stop(self):
         self.plan.return_value = ["stop"]
         self.assertFalse(self.handle("please finish", self.speak))
+
+    def test_punctuated_stop_bypasses_planner(self):
+        self.assertFalse(self.handle("Stop.", self.speak))
+        self.plan.assert_not_called()

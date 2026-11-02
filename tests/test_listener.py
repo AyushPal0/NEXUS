@@ -16,7 +16,8 @@ class ListenerTests(unittest.TestCase):
         context = {"threading": threading, "start_karna": Mock(), "start_nexus": Mock()}
         exec(compile(ast.Module(body=[method], type_ignores=[]), "listener", "exec"), context)
         window = SimpleNamespace(_assistant_thread=None, status=Mock())
-        callback = context["start_listening"]
+        arguments = [None] if len(method.args.args) > 1 else []
+        callback = lambda target: context["start_listening"](target, *arguments)
         callback(window)
         callback(window)
         threading.Thread.assert_called_once()

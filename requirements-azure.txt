@@ -1,0 +1,2 @@
+# Optional Microsoft Azure Speech provider
+azure-cognitiveservices-speech>=1.42,<2
