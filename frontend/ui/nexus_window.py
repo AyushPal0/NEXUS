@@ -22,6 +22,7 @@ class NexusWindow(QWidget):
 
         self.old_pos = None
 
+        self._assistant_thread = None
         self.init_ui()
 
     def init_ui(self):
@@ -47,10 +48,12 @@ class NexusWindow(QWidget):
 
     def start_listening(self, event):
 
+        if self._assistant_thread is not None and self._assistant_thread.is_alive():
+            return
         self.status.setText("Listening...")
 
-        thread = threading.Thread(target=start_nexus)
-        thread.start()
+        self._assistant_thread = threading.Thread(daemon=True, target=start_nexus)
+        self._assistant_thread.start()
 
     # Make window draggable
     def mousePressEvent(self, event):
