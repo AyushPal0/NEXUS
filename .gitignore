@@ -7,3 +7,4 @@ models/
 .env
 screen.png
 photo.png
+.venv-tests/

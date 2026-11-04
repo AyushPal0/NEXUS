@@ -1,0 +1,3 @@
+# Regression tests mock speech services, audio devices, automation, and Ollama.
+# Install Qt so the real offscreen interface tests run rather than being skipped.
+PyQt6==6.10.2
